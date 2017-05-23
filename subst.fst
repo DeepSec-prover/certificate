@@ -41,6 +41,7 @@ let isnt_cyclic st =
 val aux_lemma2 : hd:(variable*term) -> tl:subst -> Lemma
   (requires true)
   (ensures isnt_cyclic (hd::tl) ==> isnt_cyclic tl )
+
 let aux_lemma2 hd tl = aux_lemma1 (get_Domain tl) (snd hd) (get_Images tl)
 
 val apply : subst -> term ->Tot term
@@ -120,32 +121,17 @@ let rec compose_aux_lemma1 st1 st2 = match st1 with
   | [] -> ()
   | hd::tl -> aux_lemma3 hd tl st2 ; compose_aux_lemma1 tl st2
 
-val compose_aux_lemma2a : x:variable -> st1:subst -> st2:subst -> Lemma
-  (requires is_composable st1 st2)
-  (ensures (  (mem x (get_Domain st1)) ==> (mem x (get_Domain (compose st1 st2))) ) )
-
-val compose_aux_lemma2b : x:variable -> st1:subst -> st2:subst -> Lemma
-  (requires is_composable st1 st2)
-  (ensures (  (mem x (get_Domain st2)) ==> (mem x (get_Domain (compose st1 st2))) ) )
-
-let rec compose_aux_lemma2a x st1 st2 = match st1 with
-  | [] -> ()
-  | hd::tl -> aux_lemma3 hd tl st2 ; compose_aux_lemma2a x tl st2
-
-let rec compose_aux_lemma2b x st1 st2 = match st1 with
-  | [] -> ()
-  | hd::tl -> aux_lemma3 hd tl st2 ; compose_aux_lemma2b x tl st2
-
-val compose_aux_lemma3 : st1:subst -> st2:subst -> x:variable -> Lemma
+val compose_aux_lemma2 : st1:subst -> st2:subst -> x:variable -> Lemma
  (requires (is_composable st1 st2))
- (ensures ( (mem x (get_Domain st1) ==> (get_Term x (compose st1 st2) = apply st2 (get_Term x st1))) /\
-            (mem x (get_Domain st2) ==> (get_Term x (compose st1 st2) = get_Term x st2)) ) )
+ (ensures ( (mem x (get_Domain st1) ==> mem x (get_Domain (compose st1 st2)) /\ (get_Term x (compose st1 st2) = apply st2 (get_Term x st1))) /\
+            (mem x (get_Domain st2) ==> mem x (get_Domain (compose st1 st2)) /\ (get_Term x (compose st1 st2) = get_Term x st2)) ) )
 
-let rec compose_aux_lemma3 st1 st2 x = match st1 with
+let rec compose_aux_lemma2 st1 st2 x = match st1 with
   | [] -> ()
-  | hd::tl -> if x=fst hd then () else aux_lemma3 hd tl st2 ; compose_aux_lemma1 st1 st2;  compose_aux_lemma3 tl st2 x
+  | hd::tl -> if x=fst hd then () else
+    (aux_lemma3 hd tl st2 ; compose_aux_lemma1 st1 st2; compose_aux_lemma2 tl st2 x)
 
-(*val compose_lemma : st1:subst -> st2:subst -> t:term -> Lemma
+val compose_lemma : st1:subst -> st2:subst -> t:term -> Lemma
   (requires is_composable st1 st2)
   (ensures apply (compose st1 st2) t= apply st2 (apply st1 t))
 
@@ -154,9 +140,9 @@ val compose_list_lemma : st1:subst -> st2:subst -> lt:list term -> Lemma
   (ensures apply_list (compose st1 st2) lt = apply_list st2 (apply_list st1 lt))
 
 let rec compose_lemma st1 st2 t = match t with
-  | Var v -> compose_aux_lemma3 st1 st2 v
+  | Var v -> compose_aux_lemma1 st1 st2; compose_aux_lemma2 st1 st2 v
   | Name n -> ()
   | Func s args -> compose_list_lemma st1 st2 args
   and compose_list_lemma st1 st2 lt = match lt with
   | [] -> ()
-  | hd::tl -> compose_lemma st1 st2 hd ; compose_list_lemma st1 st2 tl*)
+  | hd::tl -> compose_lemma st1 st2 hd ; compose_list_lemma st1 st2 tl
