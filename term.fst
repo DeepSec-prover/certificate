@@ -102,6 +102,8 @@ let rec is_var_present v t =
   | [] -> true
   | hd::tl -> (is_var_present v hd) && (is_var_present_list v tl)
 
+
+
 (*** Generation function ****)
 
 val of_variable : variable -> term
