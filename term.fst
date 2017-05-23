@@ -43,10 +43,13 @@ type term =
   | Func : s:symbol -> l:(list term){ List.Tot.length l = s.arity } -> term
 
 (*** Testing functions ***)
+
+(** Checks whether the term is a variable or not**)
 val is_variable : term ->Tot bool
 
 let is_variable t = Var? t
 
+(** Checks whether the terms are equal or not**)
 val is_equal : term -> term -> Tot bool
 val is_equal_list : list term -> list term -> Tot bool
 
@@ -61,14 +64,19 @@ let rec is_equal t1 t2 =
   | [],[] -> true
   | hd1::tl1,hd2::tl2 -> (is_equal hd1 hd2)&&(is_equal_list tl1 tl2)
   | _,_ -> false
+
+(** Checks whether the term is a function or not**)
 val is_function : term ->Tot  bool
 
 let is_function f = Func? f
 
+(** Checks whether the term is a name or not**)
 val is_name : term ->Tot  bool
 
 let is_name t = Name? t
 
+(** Checks whether the term is ground or not.
+    is_ground_list is the corresponding function for lists.**)
 val is_ground : t:term ->Tot  bool
 val is_ground_list : list_term: list term ->Tot  bool
 
@@ -82,13 +90,14 @@ match list_term with
 | [] -> true
 | hd::tl -> is_ground hd && is_ground_list tl
 
+(** Checks whether the term is a constructor or not**)
 val is_constructor : term -> bool
 
 let is_constructor t =
   if not(is_function t) then false else
   if Constructor? ((Func?.s t).category_s) then true else false
 
-
+(** Checks whether the variable occurs in the term or not**)
 val is_var_present : variable -> term -> Tot bool
 val is_var_present_list : variable -> list term -> Tot bool
 
