@@ -24,7 +24,7 @@ let rec get_Domain st = match st with
 
 let rec check_presence_vars_in_terms lv lt = match lv with
   | [] -> true
-  | hd::tl -> (is_var_present_list hd lt) && (check_presence_vars_in_terms tl lt)
+  | hd::tl -> not(is_var_present_list hd lt) && (check_presence_vars_in_terms tl lt)
 
 val aux_lemma1 : lv:list variable -> hd:term -> tl:list term -> Lemma
   (requires true)
@@ -88,8 +88,13 @@ let rec aux_lemma3 hd tl st = aux_lemma2 hd tl
 val compose : st1:subst -> st2:subst -> Tot subst
 
 let rec compose st1 st2 = match st1 with
- | [] -> st2
- | hd::tl -> (fst hd,apply st2 (snd hd))::(compose tl st2)
+  | [] -> st2
+  | hd::tl -> (fst hd,apply st2 (snd hd))::(compose tl st2)
+
+val is_equal : #a:eqtype -> list a -> list a -> Tot bool
+
+let is_equal #a l1 l2 = (FStar.List.Tot.subset l1 l2) && (FStar.List.Tot.subset l2 l1)
+
 
 (*
 val is_unify : term -> term -> bool
@@ -146,3 +151,31 @@ let rec compose_lemma st1 st2 t = match t with
   and compose_list_lemma st1 st2 lt = match lt with
   | [] -> ()
   | hd::tl -> compose_lemma st1 st2 hd ; compose_list_lemma st1 st2 tl
+
+(*val subset_lemma : #a:eqtype -> e:a -> l:list a -> Lemma (requires true)(ensures FStar.List.Tot.subset l (e::l))
+
+let rec subset_lemma #a e l = match l with
+  | [] -> ()
+  | hd::tl -> subset_lemma hd tl ; subset_lemma e (hd::tl)*)
+
+val commutation_aux_lemma2 : st1:subst -> st2:subst -> Lemma
+  (requires isnt_cyclic (FStar.List.tot.append st1 st2))
+  (ensures ( (compose st1 st2) = (FStar.List.tot.append st1 st2) ) )
+
+let rec commutation_aux_lemma2 st1 st2 = match st1 with
+  | [] -> ()
+  | hd::tl -> commutation_aux_lemma2 tl st2
+
+(*val commutation_aux_lemma1 : #a:eqtype -> e1:a -> e2:a -> l:list a-> Lemma
+  (requires true)
+  (ensures is_equal (e1::(e2::l)) (e2::(e1::l)))
+
+let commutation_aux_lemma1 #a e1 e2 l= ()*)
+
+(*val commutation_lemma : st1:subst -> st2:subst -> Lemma
+  (requires isnt_cyclic (FStar.List.Tot.append st1 st2))
+  (ensures is_equal (compose st1 st2) (compose st2 st1))
+
+let rec commutation_lemma st1 st2 = match st1 with
+  | [] -> ()
+    | hd::tl -> aux_lemma2 hd (FStar.List.Tot.append tl st2) ; commutation_lemma tl st2*)
