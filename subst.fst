@@ -237,33 +237,13 @@ let rec aux_lemma7 lv hd tl = match hd with
   | [] -> ()
   | xs::ys -> aux_lemma4 lv xs (FStar.List.Tot.append ys tl) ; aux_lemma7 lv ys tl
 
-(*val commutation_aux_lemma2a: st1:subst -> st2:subst -> v:variable -> Lemma
+val commutation_aux_lemma2: st1:subst -> st2:subst -> v:variable -> Lemma
   (requires (is_composable st1 st2 && is_composable st2 st1) )
   (ensures (mem v (get_Domain st1) ==> check_absence_vars_in_terms (get_Domain st2) ((get_Term v st1)::[]) ))
 
-let commutation_aux_lemma2a st1 st2 v =*)
+let commutation_aux_lemma2 st1 st2 v = admit()
 
-val commutation_aux_lemma2: st1:subst -> st2:subst -> v:variable -> Lemma
-  (requires (is_composable st1 st2 && is_composable st2 st1) )
-  (ensures (mem v (get_Domain st1) ==> (apply st2 (get_Term v st1) = get_Term v st1)) )
-
-let commutation_aux_lemma2 st1 st2 v = if mem v (get_Domain st1) then commutation_aux_lemma1 (get_Term v st1) st2 else ()
-
-(*val commutation_aux_lemma3a : st1:subst -> st2:subst -> v:variable -> Lemma
-  (requires (is_composable st1 st2 && is_composable st2 st1) )
-  (ensures (mem v (get_Domain (compose st1 st2)) <==> mem v (get_Domain (compose st2 st1))) )
-
-val commutation_aux_lemma3b : st1:subst -> st2:subst -> v:variable -> Lemma
-  (requires (is_composable st1 st2 && is_composable st2 st1) )
-  (ensures mem v (get_Domain (compose st1 st2)) ==> (get_Term v (compose st1 st2) = get_Term v (compose st2 st1)) )
-
-let commutation_aux_lemma3a st1 st2 v = compose_aux_lemma1 st1 st2; compose_aux_lemma1 st2 st1
-
-let commutation_aux_lemma3b st1 st2 v = commutation_aux_lemma3a st1 st2 v;
-                                        compose_aux_lemma1 st1 st2; compose_aux_lemma1 st2 st1;
-                                        commutation_aux_lemma2 st1 st2 v; commutation_aux_lemma2 st2 st1 v*)
-
-(*val commutation_lemma : st1:subst -> st2:subst -> t:term-> Lemma
+val commutation_lemma : st1:subst -> st2:subst -> t:term-> Lemma
   (requires (is_composable st1 st2 && is_composable st2 st1) )
   (ensures equal_subst (compose st1 st2) (compose st2 st1) t)
 
@@ -271,10 +251,12 @@ val commutation_list_lemma : st1:subst -> st2:subst -> lt:list term-> Lemma
   (requires (is_composable st1 st2 && is_composable st2 st1) )
   (ensures equal_subst_list (compose st1 st2) (compose st2 st1) lt)
 
-let rec commutation_lemma st1 st2 t = match t with
-  | Var v -> commutation_aux_lemma3 st1 st2 v
+let rec commutation_lemma st1 st2 t = compose_lemma st1 st2 t; compose_lemma st2 st1 t; match t with
+  | Var v -> if mem v (get_Domain st1) then (commutation_aux_lemma2 st1 st2 v; commutation_aux_lemma1 (get_Term v st1) st2)
+             else if mem v (get_Domain st2) then (commutation_aux_lemma2 st2 st1 v; commutation_aux_lemma1 (get_Term v st2) st1)
+             else ()
   | Name n -> ()
   | Func s args -> commutation_list_lemma st1 st2 args
 and commutation_list_lemma st1 st2 lt = match lt with
   | [] -> ()
-  | hd::tl -> commutation_lemma st1 st2 hd; commutation_list_lemma st1 st2 tl*)
+  | hd::tl -> commutation_lemma st1 st2 hd; commutation_list_lemma st1 st2 tl
