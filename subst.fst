@@ -16,7 +16,7 @@ val get_Domain : subst -> Tot (list variable)
 (**Checks whether any variable in the first argument is present in
     any of the terms in the second argument or not.
     Returns true if no variable is present in any of the terms**)
-val check_presence_vars_in_terms : list variable -> list term -> Tot bool
+val check_absence_vars_in_terms : list variable -> list term -> Tot bool
 
 (**Checks whether the element is present in the list or not**)
 val mem: #a:eqtype -> a -> list a -> Tot bool
@@ -32,14 +32,14 @@ let rec get_Domain st = match st with
   | [] -> []
   | hd::tl -> (fst hd)::(get_Domain tl)
 
-let rec check_presence_vars_in_terms lv lt = match lv with
+let rec check_absence_vars_in_terms lv lt = match lv with
   | [] -> true
-  | hd::tl -> not(is_var_present_list hd lt) && (check_presence_vars_in_terms tl lt)
+  | hd::tl -> not(is_var_present_list hd lt) && (check_absence_vars_in_terms tl lt)
 
 (**States that if the variables arent present in a list, they are not going to be present in a smaller list**)
 val aux_lemma1 : lv:list variable -> hd:term -> tl:list term -> Lemma
   (requires true)
-  (ensures (check_presence_vars_in_terms lv (hd::tl)) ==> (check_presence_vars_in_terms lv tl) )
+  (ensures (check_absence_vars_in_terms lv (hd::tl)) ==> (check_absence_vars_in_terms lv tl) )
 let rec aux_lemma1 lv hd tl = match lv with
   | [] -> ()
   | first::last -> aux_lemma1 last hd tl
@@ -47,7 +47,7 @@ let rec aux_lemma1 lv hd tl = match lv with
 let isnt_cyclic st =
   let lv = get_Domain st in
   let lt = get_Images st in
-  check_presence_vars_in_terms lv lt
+  check_absence_vars_in_terms lv lt
 
 (**States that if a substitution isnt cyclic then a sub-list substitution isnt cyclic too**)
 val aux_lemma2 : hd:(variable*term) -> tl:subst -> Lemma
@@ -96,7 +96,7 @@ val is_composable : subst -> subst -> Tot bool
 
 let is_composable st1 st2 = (distinct_domain st1 st2)
                             && isnt_cyclic st1 && isnt_cyclic st2
-                            && check_presence_vars_in_terms (get_Domain st1) (get_Images st2)
+                            && check_absence_vars_in_terms (get_Domain st1) (get_Images st2)
 
 (**States that if hd::tl and st2 are composable then tl and st2 are composable too**)
 val aux_lemma3 : hd:(variable*term) -> tl:subst -> st:subst -> Lemma
@@ -112,11 +112,11 @@ let rec compose st1 st2 = match st1 with
   | [] -> st2
   | hd::tl -> (fst hd,apply st2 (snd hd))::(compose tl st2)
 
-(**Returns whether the 2 substitutions are equivalent under application or not.
-  Is different from equality as order here is unimportant.**)
-val is_equal : #a:eqtype -> list a -> list a -> Tot bool
+(**Checks whether the 2 substitutions are equivalent under application or not.
+  Is different from equality operator as order here is unimportant.**)
+type equal_subst (st1:subst) (st2:subst) (t:term)= ( apply st1 t = apply st2 t )
 
-let is_equal #a l1 l2 = (FStar.List.Tot.subset l1 l2) && (FStar.List.Tot.subset l2 l1)
+type equal_subst_list (st1:subst) (st2:subst) (lt:list term)= ( apply_list st1 lt = apply_list st2 lt )
 
 
 (*
@@ -186,36 +186,59 @@ let rec compose_lemma st1 st2 t = match t with
   | [] -> ()
   | hd::tl -> compose_lemma st1 st2 hd ; compose_list_lemma st1 st2 tl
 
-(*val subset_lemma : #a:eqtype -> e:a -> l:list a -> Lemma (requires true)(ensures FStar.List.Tot.subset l (e::l))
+val aux_lemma4 : lv:list variable -> hd:term -> tl:list term -> Lemma
+  (requires (check_absence_vars_in_terms lv (hd::tl)))
+  (ensures (check_absence_vars_in_terms lv [hd]))
 
-let rec subset_lemma #a e l = match l with
+let rec aux_lemma4a lv hd tl = match lv with
   | [] -> ()
-  | hd::tl -> subset_lemma hd tl ; subset_lemma e (hd::tl)*)
+  | xs::ys -> aux_lemma4a ys hd tl
 
-val commutation_aux_lemma2 : hd:(variable*term) -> tl:subst -> Lemma
-  (requires isnt_cyclic (hd::tl))
-  (ensures (apply tl (snd hd) = (snd hd)) )
+val commutation_aux_lemma1: t:term -> st:subst -> Lemma
+  (requires (check_absence_vars_in_terms (get_Domain st) [t]) )
+  (ensures (apply st t = t))
 
-let commutation_aux_lemma2 hd tl = ()
+val commutation_aux_lemma1_list: lt:list term -> st:subst -> Lemma
+  (requires (check_absence_vars_in_terms (get_Domain st) lt) )
+  (ensures (apply_list st lt = lt))
 
-(*val commutation_aux_lemma3 : st1:subst -> st2:subst -> Lemma
-  (requires isnt_cyclic (FStar.List.Tot.append st1 st2))
-  (ensures ( (compose st1 st2) = (FStar.List.Tot.append st1 st2) ) )
-
-let rec commutation_aux_lemma3 st1 st2 = match st1 with
+let rec commutation_aux_lemma1 t st = match t with
+  | Var v -> ()
+  | Name n -> ()
+  | Func s args -> commutation_aux_lemma1_list args st
+and commutation_aux_lemma1_list lt st= match lt with
   | [] -> ()
-  | hd::tl -> aux_lemma2 hd (FStar.List.Tot.append tl st2); commutation_aux_lemma3 tl st2*)
+  | hd::tl -> aux_lemma4 (get_Domain st) hd tl ; commutation_aux_lemma1 hd st ; commutation_aux_lemma1_list tl st
+(*val commutation_aux_lemma1: st1:subst -> st2:subst -> v:variable -> Lemma
+  (requires (is_composable st1 st2 && is_composable st2 st1) )
+  (ensures (mem v (get_Domain st1) ==> (apply st2 (get_Term v st1) = get_Term v st1)) )
 
-(*val commutation_aux_lemma1 : #a:eqtype -> e1:a -> e2:a -> l:list a-> Lemma
-  (requires true)
-  (ensures is_equal (e1::(e2::l)) (e2::(e1::l)))
+let rec commutation_aux_lemma1 st1 st2 v =*)
 
-let commutation_aux_lemma1 #a e1 e2 l= ()*)
+(*val commutation_aux_lemma2a : st1:subst -> st2:subst -> v:variable -> Lemma
+  (requires (is_composable st1 st2 && is_composable st2 st1) )
+  (ensures (mem v (get_Domain (compose st1 st2)) <==> mem v (get_Domain (compose st2 st1))) )
 
-(*val commutation_lemma : st1:subst -> st2:subst -> Lemma
-  (requires isnt_cyclic (FStar.List.Tot.append st1 st2))
-  (ensures is_equal (compose st1 st2) (compose st2 st1))
+val commutation_aux_lemma2b : st1:subst -> st2:subst -> v:variable -> Lemma
+  (requires (is_composable st1 st2 && is_composable st2 st1) )
+  (ensures mem v (get_Domain (compose st1 st2)) ==> (get_Term v (compose st1 st2) = get_Term v (compose st2 st1)) )
 
-let rec commutation_lemma st1 st2 = match st1 with
+let commutation_aux_lemma2a st1 st2 v = compose_aux_lemma1 st1 st2; compose_aux_lemma1 st2 st1
+
+let commutation_aux_lemma2b st1 st2 v = commutation_aux_lemma2a st1 st2 v;*)
+
+(*val commutation_lemma : st1:subst -> st2:subst -> t:term-> Lemma
+  (requires (is_composable st1 st2 && is_composable st2 st1) )
+  (ensures equal_subst (compose st1 st2) (compose st2 st1) t)
+
+val commutation_list_lemma : st1:subst -> st2:subst -> lt:list term-> Lemma
+  (requires (is_composable st1 st2 && is_composable st2 st1) )
+  (ensures equal_subst_list (compose st1 st2) (compose st2 st1) lt)
+
+let rec commutation_lemma st1 st2 t = match t with
+  | Var v -> commutation_aux_lemma2 st1 st2 v
+  | Name n -> ()
+  | Func s args -> commutation_list_lemma st1 st2 args
+and commutation_list_lemma st1 st2 lt = match lt with
   | [] -> ()
-    | hd::tl -> aux_lemma2 hd (FStar.List.Tot.append tl st2) ; commutation_lemma tl st2*)
+  | hd::tl -> commutation_lemma st1 st2 hd; commutation_list_lemma st1 st2 tl*)
