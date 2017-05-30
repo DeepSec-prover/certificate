@@ -108,7 +108,7 @@ let rec is_var_present v t =
   | Func _ args -> is_var_present_list v args
   and is_var_present_list v term_list =
   match term_list with
-  | [] -> true
+  | [] -> false
   | hd::tl -> (is_var_present v hd) || (is_var_present_list v tl)
 
 
