@@ -111,7 +111,11 @@ let rec is_var_present v t =
   | [] -> false
   | hd::tl -> (is_var_present v hd) || (is_var_present_list v tl)
 
+val is_any_var_present : lv:list variable -> t:term -> Tot bool
 
+let rec is_any_var_present lv t = match lv with
+  | [] -> false
+  | hd::tl -> (is_var_present hd t) || (is_any_var_present tl t)
 
 (*** Generation function ****)
 
