@@ -23,6 +23,10 @@ let rec collate l1 l2 = match l1,l2 with
   | [],[] -> []
   | hd1::tl1,hd2::tl2 -> (hd1,hd2)::(collate tl1 tl2)
 
+(*val is_Unifiable : l:list (term*term) -> Tot bool
+
+let rec is_Unifiable*)
+
 val sub_mgu : l:list (term*term) -> st:subst -> Tot (option subst)
 let rec sub_mgu l st = match l with
   | [] -> Some st
@@ -42,3 +46,7 @@ let rec sub_mgu l st = match l with
                      end
   | (Func s args1, Func s args2)::tl -> sub_mgu (List.Tot.append (collate args1 args2) tl) st
   | _ -> None
+
+val mgu : l:list (term*term) -> Tot (option subst)
+
+let mgu = sub_mgu l []
