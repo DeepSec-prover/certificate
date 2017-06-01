@@ -14,3 +14,6 @@ interface:
 
 subst:
 	fstar.exe $(FSTAR_LIB) subst.fst
+
+mgu:
+	fstar.exe mgu.fst
