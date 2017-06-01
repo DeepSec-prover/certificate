@@ -3,32 +3,25 @@ module Mgu
 open Term
 open Subst
 
-val apply_list_length_lemma : st:subst -> lt:list term -> Lemma
-  (requires true)
-  (ensures ( List.Tot.length lt = List.Tot.length (apply_list st lt)) )
+val apply_tuple_list : st:subst -> l:list (term*term) -> Tot (list (term*term))
 
-let rec apply_list_length_lemma st lt = match lt with
-  | [] -> ()
-  | hd::tl -> apply_list_length_lemma st tl
+let rec apply_tuple_list st l = match l with
+  | [] -> []
+  | (hd1,hd2)::tl -> (apply st hd1 , apply st hd2)::(apply_tuple_list st tl)
 
-val mgu: t1:term -> t2:term -> Tot (option subst)
-val mgu_list : l1:list term -> l2:list term -> Tot (option subst)
-let rec mgu t1 t2 = match t1,t2 with
-  | Var v , x -> Some [(v,x)]
-  | x , Var v -> Some [(v,x)]
-  | Func s args1,Func s args2 -> mgu_list args1 args2
-  | _,_ -> None
-and mgu_list l1 l2 = match l1,l2 with
-  | [],[] -> Some []
-  | hd1::tl1 , hd2::tl2 -> begin
-      let s1 = mgu hd1 hd2 in
-      if None? s1 then None
-      else (
-            let s2 = Some?.v s1 in
-            apply_list_length_lemma s2 tl1 ; apply_list_length_lemma s2 tl2;
-            let s3 = mgu_list (apply_list s2 tl1) (apply_list s2 tl2) in
-            if None? s3 then None
-            else Some ( (FStar.List.Tot.hd s2)::( Some?.v s3 ) )
-           )
-      end
-  | _,_ -> None
+val sub_mgu : l:list (term*term) -> st:subst -> Tot (option subst)
+let rec sub_mgu l st = match l with
+  | [] -> Some st
+  | (Var v, x)::tl -> begin
+                        let temp1 = (compose st [(v,x)]) in
+                        let temp2 = (apply_tuple_list [(v,x)] tl) in
+                        if None? (sub_mgu temp2 temp1) then None
+                        else (sub_mgu temp2 temp1)
+                      end
+  | (x,Var v)::tl -> begin
+                        let temp1 = (compose st [(v,x)]) in
+                        let temp2 = (apply_tuple_list [(v,x)] tl) in
+                        if None? (sub_mgu temp2 temp1) then None
+                        else (sub_mgu temp2 temp1)
+                     end
+  | _ -> None
