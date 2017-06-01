@@ -280,7 +280,6 @@ let rec commutation_aux_lemma2 st1 st2 v =  match st1 with
   | [] -> ()
   | hd::tl -> if v=(fst hd) then ( assert (check_absence_vars_in_terms  (get_Domain st2) ((snd hd)::(get_Images tl)) ) )
               else ( aux_lemma3a hd tl st2 ; aux_lemma7 st2 hd tl ; commutation_aux_lemma2 tl st2 v )
-  (*assert ( mem v (get_Domain st1) ==> (mem (get_Image v st1) (get_Images st1)) )*)
 
 (** Commutation lemma
     States that if two substutions are mutually composable,
