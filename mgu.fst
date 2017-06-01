@@ -27,20 +27,39 @@ let rec collate l1 l2 = match l1,l2 with
 
 let rec is_Unifiable*)
 
+val sub_comp: term -> Tot nat
+val sub_comp_list : list term -> Tot nat
+
+let rec sub_comp t = match t with
+  | Var v -> 1
+  | Name n -> 1
+  | Func s args -> 1 + sub_comp_list args
+and sub_comp_list args = match args with
+  | [] -> 0
+  | hd::tl -> sub_comp hd + sub_comp_list tl
+
+val complexity : list (term*term) -> Tot nat
+
+let rec complexity l = match l with
+  | [] -> 0
+  | hd::tl -> (sub_comp (fst hd)) + (sub_comp (snd hd)) + complexity tl
+
 val sub_mgu : l:list (term*term) -> st:subst -> Tot (option subst)
 let rec sub_mgu l st = match l with
   | [] -> Some st
   | (Var v, x)::tl -> begin
                         let temp1 = (compose st [(v,x)]) in
                         let temp2 = (apply_tuple_list [(v,x)] tl) in
-                        apply_list_length_lemma st tl;
+                        apply_list_length_lemma [(v,x)] tl;
+                        (assert (complexity temp2 < complexity l));
                         if None? (sub_mgu temp2 temp1) then None
                         else (sub_mgu temp2 temp1)
                       end
   | (x,Var v)::tl -> begin
                         let temp1 = (compose st [(v,x)]) in
                         let temp2 = (apply_tuple_list [(v,x)] tl) in
-                        apply_list_length_lemma st tl;
+                        apply_list_length_lemma [(v,x)] tl;
+                        (assert (complexity temp2 < complexity l));
                         if None? (sub_mgu temp2 temp1) then None
                         else (sub_mgu temp2 temp1)
                      end
@@ -49,4 +68,4 @@ let rec sub_mgu l st = match l with
 
 val mgu : l:list (term*term) -> Tot (option subst)
 
-let mgu = sub_mgu l []
+let mgu l= sub_mgu l []
