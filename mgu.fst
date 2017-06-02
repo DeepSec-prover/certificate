@@ -27,27 +27,41 @@ let rec collate l1 l2 = match l1,l2 with
 
 let rec is_Unifiable*)
 
-val sub_comp : lt:list term -> Tot nat
+val get_num_vars : t:term -> list variable -> Tot (nat*(list variable))
+val get_num_vars_list : lt:list term -> list variable -> Tot (nat*(list variable))
 
-let rec sub_comp lt = 
+let rec get_num_vars t lv =
+  match t with
+  | Var v -> if mem v lv then (0,lv) else (1,v::lv)
+  | Name n -> (0,lv)
+  | (Func s args) -> get_num_vars_list args lv
+and get_num_vars_list lt lv = match lt with
+  | [] -> (0,lv)
+  | hd::tl -> begin
+                let temp = get_num_vars hd lv in
+                let temp2 = get_num_vars_list tl (snd temp) in
+                (fst temp + fst temp2 , snd temp2 )
+              end
 
-val get_num_vars : lt:list term -> list variable -> Tot nat (decreases sub_comp lt)
+val get_num_symbols : t:term -> Tot nat
+val get_num_symbols_list : lt:list term-> Tot nat
 
-let rec get_num_vars lt lv =
-  match lt with
-  | (Var v)::tl -> if mem v lv then get_num_vars tl lv else get_num_vars tl (v::lv)
-  | (Name n)::tl -> get_num_vars tl lv
-  | (Func s args)::tl -> get_num_vars (List.Tot.append args tl) lv
+let rec get_num_symbols t =
+  match t with
+  | Var v -> 1
+  | Name n -> 1
+  | (Func s args) -> 1 + get_num_symbols_list args
+and get_num_symbols_list lt = match lt with
+  | [] -> 0
+  | hd::tl -> get_num_symbols hd + get_num_symbols_list tl
 
-val get_num_symbols : lt:list term -> Tot nat (decreases sub_comp lt)
+val rearrange_tuple_list : #a:eqtype -> list(a*a) -> Tot (list a)
 
-let rec get_num_symbols lt =
-  match lt with
-  | (Var v)::tl -> 1 + get_num_symbols tl
-  | (Name n)::tl -> 1 + get_num_symbols tl
-  | (Func s args)::tl -> 1 + get_num_symbols (List.Tot.append args tl)
+let rec rearrange_tuple_list #a l = match l with
+  | [] -> []
+  | (x,y)::tl -> x::(y::(rearrange_tuple_list tl))
 
-val sub_mgu : l:list (term*term) -> st:subst -> Tot (option subst) (decreases %[(get_num_vars l []);(get_num_symbols l)])
+val sub_mgu : l:list (term*term) -> st:subst -> Tot (option subst) (decreases %[(fst (get_num_vars_list (rearrange_tuple_list l) []));(get_num_symbols_list (rearrange_tuple_list l))])
 let rec sub_mgu l st = match l with
   | [] -> Some st
   | (Var v, x)::tl -> begin
@@ -55,8 +69,6 @@ let rec sub_mgu l st = match l with
                         else (
                           let temp1 = (compose st [(v,x)]) in
                           let temp2 = (apply_tuple_list [(v,x)] tl) in
-                          apply_list_length_lemma [(v,x)] tl;
-                          (assert (temp2 << l));
                           if None? (sub_mgu temp2 temp1) then None
                           else (sub_mgu temp2 temp1)
                         )
@@ -66,8 +78,6 @@ let rec sub_mgu l st = match l with
                         else (
                           let temp1 = (compose st [(v,x)]) in
                           let temp2 = (apply_tuple_list [(v,x)] tl) in
-                          apply_list_length_lemma [(v,x)] tl;
-                          (*(assert (complexity temp2 < complexity l));*)
                           if None? (sub_mgu temp2 temp1) then None
                           else (sub_mgu temp2 temp1)
                         )
