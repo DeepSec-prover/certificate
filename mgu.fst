@@ -27,20 +27,19 @@ let rec collate l1 l2 = match l1,l2 with
 
 let rec is_Unifiable*)
 
-val get_num_vars : t:term -> list variable -> Tot (nat*(list variable))
-val get_num_vars_list : lt:list term -> list variable -> Tot (nat*(list variable))
+val get_list_of_vars : t:term -> list variable -> Tot (list variable)
+val get_list_of_vars_list : lt:list term -> list variable -> Tot (list variable)
 
-let rec get_num_vars t lv =
+let rec get_list_of_vars t lv =
   match t with
-  | Var v -> if mem v lv then (0,lv) else (1,v::lv)
-  | Name n -> (0,lv)
-  | (Func s args) -> get_num_vars_list args lv
-and get_num_vars_list lt lv = match lt with
-  | [] -> (0,lv)
+  | Var v -> if mem v lv then lv else v::lv
+  | Name n -> lv
+  | (Func s args) -> get_list_of_vars_list args lv
+and get_list_of_vars_list lt lv = match lt with
+  | [] -> lv
   | hd::tl -> begin
-                let temp = get_num_vars hd lv in
-                let temp2 = get_num_vars_list tl (snd temp) in
-                (fst temp + fst temp2 , snd temp2 )
+                let temp1 = get_list_of_vars hd lv in
+                get_list_of_vars_list tl temp1
               end
 
 val get_num_symbols : t:term -> Tot nat
@@ -61,33 +60,30 @@ let rec rearrange_tuple_list #a l = match l with
   | [] -> []
   | (x,y)::tl -> x::(y::(rearrange_tuple_list tl))
 
-val sub_mgu : l:list (term*term) -> st:subst -> Tot (option subst) (decreases %[(fst (get_num_vars_list (rearrange_tuple_list l) []));(get_num_symbols_list (rearrange_tuple_list l))])
+val aux_lemma1 : v:variable -> x:term -> ltt:list (term*term) -> Lemma
+  (requires true)
+  (ensures List.Tot.length(get_list_of_vars_list (rearrange_tuple_list (apply_tuple_list [(v,x)] ltt)) []) < List.Tot.length(get_list_of_vars_list (rearrange_tuple_list ((Var v,x)::ltt)) []) )
+
+let rec aux_lemma1 v x ltt = match ltt with
+  | [] -> ()
+  | hd::tl -> admit()
+
+val sub_mgu : l:list (term*term) -> st:subst -> Tot (option subst) (decreases %[(List.Tot.length(get_list_of_vars_list (rearrange_tuple_list l) []));(get_num_symbols_list (rearrange_tuple_list l))])
 let rec sub_mgu l st = match l with
   | [] -> Some st
-  | (Var v, x)::tl -> begin
-                        if (is_var_present v x) then None
-                        else (
-                          let temp1 = (compose st [(v,x)]) in
-                          let temp2 = (apply_tuple_list [(v,x)] tl) in
-                          if None? (sub_mgu temp2 temp1) then None
-                          else (sub_mgu temp2 temp1)
-                        )
-                      end
+  | (Var v, x)::tl
   | (x,Var v)::tl -> begin
                         if (is_var_present v x) then None
                         else (
                           let temp1 = (compose st [(v,x)]) in
                           let temp2 = (apply_tuple_list [(v,x)] tl) in
+                          aux_lemma1 v x tl;
                           if None? (sub_mgu temp2 temp1) then None
                           else (sub_mgu temp2 temp1)
                         )
                      end
-  | (Func s args1, m2)::tl ->begin
-            match m2 with
-                | (Func s args2) -> assert(List.Tot.length args1 = s.arity) ; assert( List.Tot.length args2 = s.arity ) ; sub_mgu (List.Tot.append (collate args1 args2) tl) st
-                | _ -> None
-            end
-  | (Name a, Name a)::tl  -> sub_mgu tl st
+  | (Func s1 args1, Func s2 args2)::tl -> if s1 = s2 then (sub_mgu (List.Tot.append (collate args1 args2) tl) st) else None
+  | (Name a1, Name a2)::tl  -> if a1=a2 then sub_mgu tl st else None
   | _ -> None
 
 val mgu : l:list (term*term) -> Tot (option subst)
