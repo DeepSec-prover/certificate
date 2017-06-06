@@ -82,7 +82,11 @@ let rec sub_mgu l st = match l with
                           else (sub_mgu temp2 temp1)
                         )
                      end
-  | (Func s args1, Func s args2)::tl -> sub_mgu (List.Tot.append (collate args1 args2) tl) st
+  | (Func s args1, m2)::tl ->begin
+            match m2 with
+                | (Func s args2) -> assert(List.Tot.length args1 = s.arity) ; assert( List.Tot.length args2 = s.arity ) ; sub_mgu (List.Tot.append (collate args1 args2) tl) st
+                | _ -> None
+            end
   | (Name a, Name a)::tl  -> sub_mgu tl st
   | _ -> None
 
