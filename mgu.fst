@@ -27,8 +27,9 @@ let rec collate l1 l2 = match l1,l2 with
 
 let rec is_Unifiable*)
 
-val get_list_of_vars : t:term -> list variable -> Tot (list variable)
-val get_list_of_vars_list : lt:list term -> list variable -> Tot (list variable)
+val get_list_of_vars : term -> list variable -> Tot (list variable)
+val get_list_of_vars_list : list term -> list variable -> Tot (list variable)
+val get_list_of_vars_tuples : list (term*term) -> list variable -> Tot (list variable)
 
 let rec get_list_of_vars t lv =
   match t with
@@ -41,6 +42,10 @@ and get_list_of_vars_list lt lv = match lt with
                 let temp1 = get_list_of_vars hd lv in
                 get_list_of_vars_list tl temp1
               end
+
+(*let rec get_list_of_vars_tuples ltt lv = match ltt with
+  | [] -> []
+  | (hd1,hd2)::tl -> *)
 
 val get_num_symbols : t:term -> Tot nat
 val get_num_symbols_list : lt:list term-> Tot nat
