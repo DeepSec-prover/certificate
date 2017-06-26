@@ -157,10 +157,15 @@ val aux_lemma5 : ltt:list (term*term) -> v:variable -> t:term -> Lemma
 let rec aux_lemma5 ltt v t = aux_lemma1c ltt v t; aux_lemma2 ltt v t; aux_lemma3 ltt v t ;
                              size_lemma v (get_fset_vars_tuple_list (apply_tuple_list [(v,t)] ltt)) (get_fset_vars_tuple_list ((Var v,t)::ltt))
 
-assume val aux_lemma6 : lt1:list term -> lt2:list term ->  ltt:list (term*term) -> s:symbol -> Lemma
-  (requires ((List.Tot.length lt1 = s.arity) && (List.Tot.length lt2 = s.arity) ) )
-  (ensures (assert(List.Tot.length lt1 = List.Tot.length lt2); size (get_fset_vars_tuple_list (List.Tot.append (collate lt1 lt2) ltt)) < size (get_fset_vars_tuple_list ((Func s lt1, Func s lt2)::ltt) ) ))
+assume val aux_lemma6 : lt1:list term -> lt2:list term {List.Tot.length lt2 = List.Tot.length lt1} ->  ltt:list (term*term) -> s:symbol { s.arity = List.Tot.length lt1} -> Lemma
+  (requires true )
+  (ensures ( size (get_fset_vars_tuple_list (List.Tot.append (collate lt1 lt2) ltt)) = size (get_fset_vars_tuple_list ((Func s lt1, Func s lt2)::ltt)) ) )
 
+assume val aux_lemma7 : lt1:list term -> lt2:list term {List.Tot.length lt2 = List.Tot.length lt1} ->  ltt:list (term*term) -> s:symbol { s.arity = List.Tot.length lt1} -> Lemma
+  (requires true )
+  (ensures ( get_num_symbols_tuple_list(List.Tot.append (collate lt1 lt2) ltt) < get_num_symbols_tuple_list((Func s lt1, Func s lt2)::ltt)) )
+
+(*let rec aux_lemma6 lt1 lt2 ltt s =*)
 
 val sub_mgu : l:list (term*term) -> st:subst -> Tot (option subst) (decreases %[size (get_fset_vars_tuple_list l);(get_num_symbols_tuple_list l)])
 let rec sub_mgu l st = match l with
@@ -180,7 +185,7 @@ let rec sub_mgu l st = match l with
       assert(size (get_fset_vars_tuple_list tl) = size (get_fset_vars_tuple_list l));
       sub_mgu tl st
       ) else None
-  | (Func s1 args1, Func s2 args2)::tl -> if s1 = s2 then (sub_mgu (List.Tot.append (collate args1 args2) tl) st) else None
+  | (Func s1 args1, Func s2 args2)::tl -> if s1 = s2 then (aux_lemma6 args1 args2 tl s1; aux_lemma7 args1 args2 tl s1;  sub_mgu (List.Tot.append (collate args1 args2) tl) st) else None
   | _ -> None
 
 val mgu : l:list (term*term) -> Tot (option subst)
