@@ -81,19 +81,36 @@ let rec get_fset_vars_tuple_list ltt = match ltt with
 
 val tuple_fset_lemma : t1:term -> t2:term -> ltt: list (term*term) -> Lemma
   (requires true)
-  (ensures (equal (get_fset_vars_tuple_list ( (t1,t2)::ltt )) (get_fset_vars_tuple_list ( (t1,t2)::ltt ))) )
+  (ensures (equal (get_fset_vars_tuple_list ( (t1,t2)::ltt )) (get_fset_vars_tuple_list ( (t2,t1)::ltt ))) )
   [SMTPat (get_fset_vars_tuple_list ( (t1,t2)::ltt ))]
 
 let tuple_fset_lemma t1 t2 ltt = ()
 
-assume val aux_lemma1 : ltt:list (term*term) -> v:variable -> t:term -> Lemma
+val aux_lemma1a : x:term -> v:variable -> t:term -> Lemma
+  (requires not(is_var_present v t))
+  (ensures fsubset (get_fset_vars (apply [(v,t)] x)) (funion (get_fset_vars x) (get_fset_vars t)) )
+val aux_lemma1b : lx:list term -> v:variable -> t:term -> Lemma
+  (requires not(is_var_present v t))
+  (ensures fsubset (get_fset_vars_list (apply_list [(v,t)] lx)) (funion (get_fset_vars_list lx) (get_fset_vars t)) )
+
+let rec aux_lemma1a x v t = match x with
+  | Var w -> if (v=w) then
+            (assert(apply [(v,t)] x = t)) else
+            (assert(apply [(v,t)] x = x))
+  | Name n -> assert(equal (get_fset_vars x) fempty);
+              assert(equal (funion (get_fset_vars x) (get_fset_vars t)) (funion fempty (funion (get_fset_vars x) (get_fset_vars t))))
+  | Func s args -> aux_lemma1b args v t
+  and aux_lemma1b lx v t =  match lx with
+  | [] -> ()
+  | hd::tl -> aux_lemma1a hd v t; aux_lemma1b tl v t
+
+val aux_lemma1c : ltt:list (term*term) -> v:variable -> t:term -> Lemma
   (requires not(is_var_present v t))
   (ensures fsubset (get_fset_vars_tuple_list (apply_tuple_list [(v,t)] ltt)) (get_fset_vars_tuple_list ( (Var v,t)::ltt ) ) )
 
-(*let rec aux_lemma1 ltt v t = match ltt with
+let rec aux_lemma1c ltt v t = match ltt with
   | [] -> ()
-  | (hd1,hd2)::tl -> ;aux_lemma1 tl v t*)
-
+  | (hd1,hd2)::tl -> aux_lemma1a hd1 v t; aux_lemma1a hd2 v t; aux_lemma1c tl v t
 
 val aux_lemma2 : ltt:list (term*term) -> v:variable -> t:term -> Lemma
   (requires true)
@@ -135,12 +152,15 @@ let rec aux_lemma3 ltt v t = match ltt with
 
 val aux_lemma5 : ltt:list (term*term) -> v:variable -> t:term -> Lemma
   (requires not(is_var_present v t))
-  (ensures size (get_fset_vars_tuple_list (apply_tuple_list [(v,t)] ltt)) < size (get_fset_vars_tuple_list ((Var v,t)::ltt)) /\
-           size (get_fset_vars_tuple_list (apply_tuple_list [(v,t)] ltt)) < size (get_fset_vars_tuple_list ((t,Var v)::ltt)) )
+  (ensures size (get_fset_vars_tuple_list (apply_tuple_list [(v,t)] ltt)) < size (get_fset_vars_tuple_list ((Var v,t)::ltt)) )
 
-let rec aux_lemma5 ltt v t = aux_lemma1 ltt v t; aux_lemma2 ltt v t; aux_lemma3 ltt v t ;
-                             size_lemma v (get_fset_vars_tuple_list (apply_tuple_list [(v,t)] ltt)) (get_fset_vars_tuple_list ((Var v,t)::ltt));
-                             size_lemma v (get_fset_vars_tuple_list (apply_tuple_list [(v,t)] ltt)) (get_fset_vars_tuple_list ((t,Var v)::ltt))
+let rec aux_lemma5 ltt v t = aux_lemma1c ltt v t; aux_lemma2 ltt v t; aux_lemma3 ltt v t ;
+                             size_lemma v (get_fset_vars_tuple_list (apply_tuple_list [(v,t)] ltt)) (get_fset_vars_tuple_list ((Var v,t)::ltt))
+
+assume val aux_lemma6 : lt1:list term -> lt2:list term ->  ltt:list (term*term) -> s:symbol -> Lemma
+  (requires ((List.Tot.length lt1 = s.arity) && (List.Tot.length lt2 = s.arity) ) )
+  (ensures (assert(List.Tot.length lt1 = List.Tot.length lt2); size (get_fset_vars_tuple_list (List.Tot.append (collate lt1 lt2) ltt)) < size (get_fset_vars_tuple_list ((Func s lt1, Func s lt2)::ltt) ) ))
+
 
 val sub_mgu : l:list (term*term) -> st:subst -> Tot (option subst) (decreases %[size (get_fset_vars_tuple_list l);(get_num_symbols_tuple_list l)])
 let rec sub_mgu l st = match l with
@@ -156,8 +176,11 @@ let rec sub_mgu l st = match l with
                           else (sub_mgu temp2 temp1)
                         )
                      end
+  | (Name a1, Name a2)::tl  -> if a1=a2 then (
+      assert(size (get_fset_vars_tuple_list tl) = size (get_fset_vars_tuple_list l));
+      sub_mgu tl st
+      ) else None
   | (Func s1 args1, Func s2 args2)::tl -> if s1 = s2 then (sub_mgu (List.Tot.append (collate args1 args2) tl) st) else None
-  | (Name a1, Name a2)::tl  -> if a1=a2 then sub_mgu tl st else None
   | _ -> None
 
 val mgu : l:list (term*term) -> Tot (option subst)
