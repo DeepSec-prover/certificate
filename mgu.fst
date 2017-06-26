@@ -73,32 +73,74 @@ let rec get_num_symbols_tuple_list ltt = match ltt with
   | [] -> 0
   | (hd1,hd2)::tl -> get_num_symbols hd1 + get_num_symbols hd2 + get_num_symbols_tuple_list tl
 
-
 val get_fset_vars_tuple_list : list (term*term) -> Tot (fset variable)
 
 let rec get_fset_vars_tuple_list ltt = match ltt with
   | [] -> fempty
   | (hd1,hd2)::tl -> funion (get_fset_vars hd1)  (funion (get_fset_vars hd2) (get_fset_vars_tuple_list tl))
 
+val tuple_fset_lemma : t1:term -> t2:term -> ltt: list (term*term) -> Lemma
+  (requires true)
+  (ensures (equal (get_fset_vars_tuple_list ( (t1,t2)::ltt )) (get_fset_vars_tuple_list ( (t1,t2)::ltt ))) )
+  [SMTPat (get_fset_vars_tuple_list ( (t1,t2)::ltt ))]
+
+let tuple_fset_lemma t1 t2 ltt = ()
+
 assume val aux_lemma1 : ltt:list (term*term) -> v:variable -> t:term -> Lemma
   (requires not(is_var_present v t))
-  (ensures fsubset (get_fset_vars_tuple_list (apply_tuple_list [(v,t)] ltt)) (get_fset_vars_tuple_list ( (Var v,t)::ltt ) ) /\
-          fsubset (get_fset_vars_tuple_list (apply_tuple_list [(v,t)] ltt)) (get_fset_vars_tuple_list ( (t,Var v)::ltt ) ) )
+  (ensures fsubset (get_fset_vars_tuple_list (apply_tuple_list [(v,t)] ltt)) (get_fset_vars_tuple_list ( (Var v,t)::ltt ) ) )
 
-assume val aux_lemma2 : ltt:list (term*term) -> v:variable -> t:term -> Lemma
-  (requires true)
-  (ensures (mem v (get_fset_vars_tuple_list ((Var v,t)::ltt)) && mem v (get_fset_vars_tuple_list ((t,Var v)::ltt))) )
+(*let rec aux_lemma1 ltt v t = match ltt with
+  | [] -> ()
+  | (hd1,hd2)::tl -> ;aux_lemma1 tl v t*)
 
-assume val aux_lemma3 : ltt:list (term*term) -> v:variable -> t:term -> Lemma
+
+val aux_lemma2 : ltt:list (term*term) -> v:variable -> t:term -> Lemma
   (requires true)
+  (ensures (mem v (get_fset_vars_tuple_list ((Var v,t)::ltt))) )
+
+let aux_lemma2 ltt v t = ()
+
+val aux_lemma3a : v:variable -> t:term -> Lemma (requires not(is_var_present v t)) (ensures not(mem v (get_fset_vars t)))
+val aux_lemma3b : v:variable -> lt:list term -> Lemma (requires not(is_var_present_list v lt)) (ensures not(mem v (get_fset_vars_list lt)))
+
+let rec aux_lemma3a v t = match t with
+  | Var w -> assert(not(v=w))
+  | Name n -> ()
+  | Func s args -> aux_lemma3b v args
+and aux_lemma3b v lt = match lt with
+  | [] -> ()
+  | hd::tl -> aux_lemma3a v hd ; aux_lemma3b v tl
+
+val aux_lemma4a : t:term -> v:variable -> x:term -> Lemma(requires not(is_var_present v x))(ensures not(mem v (get_fset_vars (apply [(v,x)] t) )))
+val aux_lemma4b : lt:list term -> v:variable -> x:term -> Lemma(requires not(is_var_present v x))(ensures not(mem v (get_fset_vars_list (apply_list [(v,x)] lt) )))
+
+let rec aux_lemma4a t v x = match t with
+  | Var w -> if not(v=w) then
+            ( assert(apply [(v,x)] t = t); assert(equal (get_fset_vars t) (fsingleton w)); assert(not(mem v (fsingleton w))) ) else
+            (assert(apply [(v,x)] t = x); aux_lemma3a v x )
+  | Name n -> assert(apply [(v,x)] t = t); assert(equal (get_fset_vars t) (fempty)); assert(not(mem v fempty))
+  | Func s args -> aux_lemma4b args v x
+and aux_lemma4b lt v x = match lt with
+  | [] -> ()
+  | hd::tl -> aux_lemma4a hd v x ;  aux_lemma4b tl v x
+
+val aux_lemma3 : ltt:list (term*term) -> v:variable -> t:term -> Lemma
+  (requires not(is_var_present v t))
   (ensures not(mem v (get_fset_vars_tuple_list (apply_tuple_list [(v,t)] ltt))))
 
-val aux_lemma4 : ltt:list (term*term) -> v:variable -> t:term -> Lemma
-  (requires not(is_var_present v t))
-  (ensures size (get_fset_vars_tuple_list (apply_tuple_list [(v,t)] ltt)) < size (get_fset_vars_tuple_list ((Var v,t)::ltt)))
+let rec aux_lemma3 ltt v t = match ltt with
+  | [] -> ()
+  | (hd1,hd2)::tl -> aux_lemma4a hd1 v t; aux_lemma4a hd2 v t; aux_lemma3 tl v t
 
-let rec aux_lemma4 ltt v t = aux_lemma1 ltt v t; aux_lemma2 ltt v t; aux_lemma3 ltt v t ;
-                             size_lemma v (get_fset_vars_tuple_list (apply_tuple_list [(v,t)] ltt)) (get_fset_vars_tuple_list ((Var v,t)::ltt))
+val aux_lemma5 : ltt:list (term*term) -> v:variable -> t:term -> Lemma
+  (requires not(is_var_present v t))
+  (ensures size (get_fset_vars_tuple_list (apply_tuple_list [(v,t)] ltt)) < size (get_fset_vars_tuple_list ((Var v,t)::ltt)) /\
+           size (get_fset_vars_tuple_list (apply_tuple_list [(v,t)] ltt)) < size (get_fset_vars_tuple_list ((t,Var v)::ltt)) )
+
+let rec aux_lemma5 ltt v t = aux_lemma1 ltt v t; aux_lemma2 ltt v t; aux_lemma3 ltt v t ;
+                             size_lemma v (get_fset_vars_tuple_list (apply_tuple_list [(v,t)] ltt)) (get_fset_vars_tuple_list ((Var v,t)::ltt));
+                             size_lemma v (get_fset_vars_tuple_list (apply_tuple_list [(v,t)] ltt)) (get_fset_vars_tuple_list ((t,Var v)::ltt))
 
 val sub_mgu : l:list (term*term) -> st:subst -> Tot (option subst) (decreases %[size (get_fset_vars_tuple_list l);(get_num_symbols_tuple_list l)])
 let rec sub_mgu l st = match l with
@@ -109,7 +151,7 @@ let rec sub_mgu l st = match l with
                         else (
                           let temp1 = (compose st [(v,x)]) in
                           let temp2 = (apply_tuple_list [(v,x)] tl) in
-                          aux_lemma4 tl v x;
+                          aux_lemma5 tl v x;
                           if None? (sub_mgu temp2 temp1) then None
                           else (sub_mgu temp2 temp1)
                         )

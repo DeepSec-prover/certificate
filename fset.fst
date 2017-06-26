@@ -53,6 +53,15 @@ assume val subset_mem: #a:eqtype -> s1:fset a -> s2:fset a -> Lemma
    (ensures (forall x. mem x s1 ==> mem x s2))
    [SMTPat (fsubset s1 s2)]
 
+assume val lemma_union_comm : #a:eqtype -> s1:fset a -> s2:fset a -> Lemma
+  (requires True)
+  (ensures (equal (funion s1 s2) (funion s2 s1)))
+  [SMTPat (funion s1 s2)]
+
+assume val lemma_union_assoc : #a:eqtype -> s1:fset a -> s2:fset a -> s3:fset a -> Lemma
+  (requires True)
+  (ensures (equal (funion s1 (funion s2 s3)) (funion s2 (funion s1 s3))))
+  [SMTPat (funion s1 (funion s2 s3))]
 
 (* extensionality *)
 
