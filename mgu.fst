@@ -28,9 +28,6 @@ let rec collate l1 l2 = match l1,l2 with
   | [],[] -> []
   | hd1::tl1,hd2::tl2 -> (hd1,hd2)::(collate tl1 tl2)
 
-(*val is_Unifiable : l:list (term*term) -> Tot bool
-
-let rec is_Unifiable*)
 
 (** These functions return the set of variables in a term and in a list of term respectively. **)
 val get_fset_vars : term -> Tot (fset variable)
@@ -230,7 +227,34 @@ let rec sub_mgu l st = match l with
   | (Func s1 args1, Func s2 args2)::tl -> if s1 = s2 then (aux_lemma7 args1 args2 tl s1; aux_lemma10 args1 args2 tl s1;  sub_mgu (List.Tot.append (collate args1 args2) tl) st) else None
   | _ -> None
 
-  (** The main mgu function. Has a call to sub_mgu **)
+(** The main mgu function. Has a call to sub_mgu **)
 val mgu : l:list (term*term) -> Tot (option subst)
 
 let mgu l= sub_mgu l []
+
+(** The main function which is called by is_Unifiable. **)
+val sub_unifiable : l:list (term*term) -> st:subst -> Tot bool (decreases %[size (get_fset_vars_tuple_list l);(get_num_symbols_tuple_list l)])
+
+let rec sub_unifiable l st = match l with
+  | [] -> true
+  | (Var v, x)::tl
+  | (x,Var v)::tl -> begin
+                        if (is_var_present v x) then false
+                        else (
+                          let temp1 = (compose st [(v,x)]) in
+                          let temp2 = (apply_tuple_list [(v,x)] tl) in
+                          aux_lemma5 tl v x;
+                          (sub_unifiable temp2 temp1)
+                        )
+                     end
+  | (Name a1, Name a2)::tl  -> if a1=a2 then (
+      assert(size (get_fset_vars_tuple_list tl) = size (get_fset_vars_tuple_list l));
+      sub_unifiable tl st
+      ) else false
+  | (Func s1 args1, Func s2 args2)::tl -> if s1 = s2 then (aux_lemma7 args1 args2 tl s1; aux_lemma10 args1 args2 tl s1; sub_unifiable (List.Tot.append (collate args1 args2) tl) st) else false
+  | _ -> false
+
+(** This function determines whether the list of tuples of terms is unifiable or not. **)
+val is_Unifiable : l:list (term*term) -> Tot bool
+
+let is_Unifiable l = sub_unifiable l []
