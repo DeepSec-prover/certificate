@@ -76,6 +76,13 @@ val tuple_fset_lemma : t1:term -> t2:term -> ltt: list (term*term) -> Lemma
 
 let tuple_fset_lemma t1 t2 ltt = ()
 
+val tuple_fset_size_lemma : t1:term -> t2:term -> ltt: list (term*term) -> Lemma
+  (requires true)
+  (ensures (size (get_fset_vars_tuple_list ( (t1,t2)::ltt )) = size (get_fset_vars_tuple_list ( (t2,t1)::ltt ))) )
+  [SMTPat (size (get_fset_vars_tuple_list ( (t1,t2)::ltt )))]
+
+let tuple_fset_size_lemma t1 t2 ltt = tuple_fset_lemma t1 t2 ltt; equal_size_lemma (get_fset_vars_tuple_list ( (t1,t2)::ltt )) (get_fset_vars_tuple_list ( (t2,t1)::ltt ))
+
 (** Supporting lemmas for aux_lemma1c. State that vars(x{t/v}) is a subset of vars(x) U vars(t)  **)
 val aux_lemma1a : x:term -> v:variable -> t:term -> Lemma
   (requires not(is_var_present v t))
@@ -172,12 +179,21 @@ let rec aux_lemma6b lt1 lt2 = match lt1,lt2 with
   | [],[] -> ()
   | hd1::tl1,hd2::tl2 -> aux_lemma6b tl1 tl2
 
+assume val aux_lemma6c : #a:eqtype -> s1:fset a -> s2:fset a -> s3:fset a -> Lemma
+  (requires equal s1 s2)
+  (ensures (equal (funion s1 s3) (funion s2 s3)))
+
 (** Lemma for proving termination in the third case. States that the size of the variables set remains the same between the two calls. **)
 val aux_lemma7 : lt1:list term -> lt2:list term {List.Tot.length lt2 = List.Tot.length lt1} ->  ltt:list (term*term) -> s:symbol { s.arity = List.Tot.length lt1 } -> Lemma
   (requires true )
   (ensures ( size (get_fset_vars_tuple_list (List.Tot.append (collate lt1 lt2) ltt)) = size (get_fset_vars_tuple_list ((Func s lt1, Func s lt2)::ltt)) ) )
 
-let rec aux_lemma7 lt1 lt2 ltt s = aux_lemma6a (collate lt1 lt2) ltt; aux_lemma6b lt1 lt2
+let rec aux_lemma7 lt1 lt2 ltt s = aux_lemma6a (collate lt1 lt2) ltt; aux_lemma6b lt1 lt2 ;
+    aux_lemma6c (get_fset_vars_tuple_list (collate lt1 lt2)) (funion (get_fset_vars_list lt1) (get_fset_vars_list lt2)) (get_fset_vars_tuple_list ltt);
+    assert(equal (get_fset_vars_tuple_list (List.Tot.append (collate lt1 lt2) ltt)) (funion (funion (get_fset_vars_list lt1) (get_fset_vars_list lt2)) (get_fset_vars_tuple_list ltt)));
+    assert(equal (get_fset_vars_tuple_list ((Func s lt1, Func s lt2)::ltt)) (funion (funion (get_fset_vars_list lt1) (get_fset_vars_list lt2)) (get_fset_vars_tuple_list ltt)));
+    equal_size_lemma (get_fset_vars_tuple_list (List.Tot.append (collate lt1 lt2) ltt)) (funion (funion (get_fset_vars_list lt1) (get_fset_vars_list lt2)) (get_fset_vars_tuple_list ltt));
+    equal_size_lemma (get_fset_vars_tuple_list ((Func s lt1, Func s lt2)::ltt)) (funion (funion (get_fset_vars_list lt1) (get_fset_vars_list lt2)) (get_fset_vars_tuple_list ltt))
 
 (** Supporting lemma for aux_lemma10. States that the number of symbols in the collated form of 2 lists is equal to the sum of the numbers of symbols in each of them **)
 val aux_lemma8 : lt1:list term -> lt2:list term { List.Tot.length lt2 = List.Tot.length lt1 } -> Lemma
@@ -221,6 +237,7 @@ let rec sub_mgu l st = match l with
                         )
                      end
   | (Name a1, Name a2)::tl  -> if a1=a2 then (
+      equal_size_lemma (get_fset_vars_tuple_list tl) (get_fset_vars_tuple_list l);
       assert(size (get_fset_vars_tuple_list tl) = size (get_fset_vars_tuple_list l));
       sub_mgu tl st
       ) else None
@@ -248,6 +265,7 @@ let rec sub_unifiable l st = match l with
                         )
                      end
   | (Name a1, Name a2)::tl  -> if a1=a2 then (
+      equal_size_lemma (get_fset_vars_tuple_list tl) (get_fset_vars_tuple_list l);
       assert(size (get_fset_vars_tuple_list tl) = size (get_fset_vars_tuple_list l));
       sub_unifiable tl st
       ) else false

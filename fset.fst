@@ -1,7 +1,6 @@
 module Fset
 
 assume type fset (a:eqtype)
-assume type equal (#a:eqtype) (s1:fset a) (s2:fset a)
 
 (* destructors *)
 
@@ -15,7 +14,8 @@ assume val fintersect  : #a:eqtype -> fset a -> fset a -> Tot (fset a)
 assume val fcomplement : #a:eqtype -> fset a -> Tot (fset a)
 
 (* ops *)
-assume type fsubset (#a:eqtype) (s1:fset a) (s2:fset a) :Type0
+type fsubset (#a:eqtype) (s1:fset a) (s2:fset a) :Type0 = (forall x. mem x s1 ==> mem x s2)
+type equal (#a:eqtype) (s1:fset a) (s2:fset a) = fsubset s1 s2 /\ fsubset s2 s1
 
 (* Properties *)
 assume val mem_fempty: #a:eqtype -> x:a -> Lemma
@@ -43,25 +43,21 @@ assume val mem_fcomplement: #a:eqtype -> x:a -> s:fset a -> Lemma
    (ensures (mem x (fcomplement s) = not (mem x s)))
    [SMTPat (mem x (fcomplement s))]
 
-assume val mem_subset: #a:eqtype -> s1:fset a -> s2:fset a -> Lemma
-   (requires (forall x. mem x s1 ==> mem x s2))
-   (ensures (fsubset s1 s2))
-   [SMTPat (fsubset s1 s2)]
-
-assume val subset_mem: #a:eqtype -> s1:fset a -> s2:fset a -> Lemma
-   (requires (fsubset s1 s2))
-   (ensures (forall x. mem x s1 ==> mem x s2))
-   [SMTPat (fsubset s1 s2)]
-
 assume val lemma_union_empty : #a:eqtype -> s1:fset a -> s2:fset a -> Lemma
   (requires (equal s2 fempty))
   (ensures (equal s1 (funion s1 s2)))
   [SMTPat (funion s1 s2)]
 
+
 assume val lemma_union_id : #a:eqtype -> s1:fset a -> s2:fset a -> Lemma
   (requires (equal s1 s2))
   (ensures (equal (funion s1 s2) s1))
   [SMTPat (funion s1 s2)]
+
+(*assume val lemma_union_empty : #a:eqtype -> s1:fset a  -> Lemma
+  (requires true)
+  (ensures (equal s1 (funion s1 fempty)))
+  [SMTPat (funion s1 fempty)]*)
 
 assume val lemma_union_subset1 : #a:eqtype -> s1:fset a -> s2:fset a -> Lemma
   (requires True)
@@ -85,21 +81,10 @@ assume val lemma_union_assoc : #a:eqtype -> s1:fset a -> s2:fset a -> s3:fset a 
 
 (* extensionality *)
 
-assume val lemma_equal_intro: #a:eqtype -> s1:fset a -> s2:fset a -> Lemma
-    (requires  (forall x. mem x s1 = mem x s2))
-    (ensures (equal s1 s2))
-    [SMTPatT (equal s1 s2)]
-
-assume val lemma_equal_elim: #a:eqtype -> s1:fset a -> s2:fset a -> Lemma
-    (requires (equal s1 s2))
-    (ensures  (s1 == s2))
-    [SMTPatT (equal s1 s2)]
-
-assume val lemma_equal_refl: #a:eqtype -> s1:fset a -> s2:fset a -> Lemma
-    (requires (s1 == s2))
-    (ensures  (equal s1 s2))
-    [SMTPatT (equal s1 s2)]
-
 assume val size : #a:eqtype -> s:fset a -> Tot nat
+
+assume val equal_size_lemma : #a:eqtype -> s1:fset a -> s2:fset a -> Lemma
+  (requires (equal s1 s2))
+  (ensures (size s1 = size s2))
 
 assume val size_lemma : #a:eqtype -> x:a -> s1:fset a -> s2:fset a -> Lemma (requires ((fsubset s1 s2) /\ (mem x s2) /\ not(mem x s1)) ) (ensures size s1 < size s2)
