@@ -276,3 +276,13 @@ let rec sub_unifiable l st = match l with
 val is_Unifiable : l:list (term*term) -> Tot bool
 
 let is_Unifiable l = sub_unifiable l []
+
+val is_unifier :ltt:list (term*term) -> st:subst -> Tot bool
+
+let rec is_unifier ltt st = match ltt with
+  | [] -> true
+  | (hd1,hd2)::tl -> (apply st hd1 = apply st hd2) && (is_unifier tl st)
+
+assume val mgu_lemma : ltt: list (term*term) -> st:subst -> Lemma
+  (requires is_unifier ltt st)
+  (ensures exists (st2:subst). (if Some? (mgu ltt) then st = compose (Some?.v (mgu ltt)) st2 else true ) )
