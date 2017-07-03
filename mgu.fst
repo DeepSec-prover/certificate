@@ -250,32 +250,26 @@ val mgu : l:list (term*term) -> Tot (option subst)
 let mgu l= sub_mgu l []
 
 (** The main function which is called by is_Unifiable. **)
-val sub_unifiable : l:list (term*term) -> st:subst -> Tot bool (decreases %[size (get_fset_vars_tuple_list l);(get_num_symbols_tuple_list l)])
+val is_Unifiable : l:list (term*term) -> Tot bool (decreases %[size (get_fset_vars_tuple_list l);(get_num_symbols_tuple_list l)])
 
-let rec sub_unifiable l st = match l with
+let rec is_Unifiable l = match l with
   | [] -> true
   | (Var v, x)::tl
   | (x,Var v)::tl -> begin
                         if (is_var_present v x) then false
                         else (
-                          let temp1 = (compose st [(v,x)]) in
                           let temp2 = (apply_tuple_list [(v,x)] tl) in
                           aux_lemma5 tl v x;
-                          (sub_unifiable temp2 temp1)
+                          (is_Unifiable temp2)
                         )
                      end
   | (Name a1, Name a2)::tl  -> if a1=a2 then (
       equal_size_lemma (get_fset_vars_tuple_list tl) (get_fset_vars_tuple_list l);
       assert(size (get_fset_vars_tuple_list tl) = size (get_fset_vars_tuple_list l));
-      sub_unifiable tl st
+      is_Unifiable tl
       ) else false
-  | (Func s1 args1, Func s2 args2)::tl -> if s1 = s2 then (aux_lemma7 args1 args2 tl s1; aux_lemma10 args1 args2 tl s1; sub_unifiable (List.Tot.append (collate args1 args2) tl) st) else false
+  | (Func s1 args1, Func s2 args2)::tl -> if s1 = s2 then (aux_lemma7 args1 args2 tl s1; aux_lemma10 args1 args2 tl s1; is_Unifiable (List.Tot.append (collate args1 args2) tl)) else false
   | _ -> false
-
-(** This function determines whether the list of tuples of terms is unifiable or not. **)
-val is_Unifiable : l:list (term*term) -> Tot bool
-
-let is_Unifiable l = sub_unifiable l []
 
 val is_unifier :ltt:list (term*term) -> st:subst -> Tot bool
 
@@ -283,6 +277,27 @@ let rec is_unifier ltt st = match ltt with
   | [] -> true
   | (hd1,hd2)::tl -> (apply st hd1 = apply st hd2) && (is_unifier tl st)
 
+val unify_mgu : ltt: list (term*term) -> Lemma
+  (requires true)
+  (ensures (is_Unifiable ltt ==> Some? (mgu ltt)))
+
+let rec unify_mgu ltt = match ltt with
+  | [] -> ()
+  | (Var v,x)::tl
+  | (x,Var v)::tl -> admit()
+  | (Name a1,Name a2)::tl -> if (a1=a2) then () else (assert(is_Unifiable ltt = false); assert(is_Unifiable ltt ==> Some? (mgu ltt));)
+  | (Func s1 args1, Func s2 args2)::tl -> if s1 = s2 then 
+
+
+assume val existence_unifier : ltt: list (term*term) -> Lemma
+  (requires true)
+  (ensures (exists (st:subst). is_unifier ltt st) <==> is_Unifiable ltt)
+
+
 assume val mgu_lemma : ltt: list (term*term) -> st:subst -> Lemma
   (requires is_unifier ltt st)
-  (ensures exists (st2:subst). (if Some? (mgu ltt) then st = compose (Some?.v (mgu ltt)) st2 else true ) )
+  (ensures (Some? (mgu ltt) /\ (exists (st2:subst). (st = compose (Some?.v (mgu ltt)) st2))) )
+
+assume val mgu_lemma2 : ltt: list (term*term) -> Lemma
+  (requires is_Unifiable ltt)
+  (ensures Some? (mgu ltt) /\ is_unifier ltt (Some?.v (mgu ltt)))
