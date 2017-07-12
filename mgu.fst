@@ -282,7 +282,7 @@ val unify_mgu : ltt: list (term*term) -> Lemma
   (ensures (is_Unifiable ltt ==> Some? (mgu ltt))) (decreases %[size (get_fset_vars_tuple_list ltt);(get_num_symbols_tuple_list ltt)])
 
 let rec unify_mgu ltt = match ltt with
-  | [] -> ()
+  | [] -> (assert(is_Unifiable ltt ==> Some? (mgu ltt)))
   | (Var v,x)::tl
   | (x,Var v)::tl -> admit()
   | (Name a1,Name a2)::tl -> if (a1=a2) then () else (assert(is_Unifiable ltt = false); assert(is_Unifiable ltt ==> Some? (mgu ltt)))
