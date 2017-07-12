@@ -279,15 +279,16 @@ let rec is_unifier ltt st = match ltt with
 
 val unify_mgu : ltt: list (term*term) -> Lemma
   (requires true)
-  (ensures (is_Unifiable ltt ==> Some? (mgu ltt)))
+  (ensures (is_Unifiable ltt ==> Some? (mgu ltt))) (decreases %[size (get_fset_vars_tuple_list ltt);(get_num_symbols_tuple_list ltt)])
 
 let rec unify_mgu ltt = match ltt with
   | [] -> ()
   | (Var v,x)::tl
   | (x,Var v)::tl -> admit()
-  | (Name a1,Name a2)::tl -> if (a1=a2) then () else (assert(is_Unifiable ltt = false); assert(is_Unifiable ltt ==> Some? (mgu ltt));)
-  | (Func s1 args1, Func s2 args2)::tl -> if s1 = s2 then 
-
+  | (Name a1,Name a2)::tl -> if (a1=a2) then () else (assert(is_Unifiable ltt = false); assert(is_Unifiable ltt ==> Some? (mgu ltt)))
+  | (Func s1 args1, Func s2 args2)::tl -> if s1=s2 then (aux_lemma7 args1 args2 tl s1; aux_lemma10 args1 args2 tl s1;  unify_mgu (List.Tot.append (collate args1 args2) tl))
+                                          else ( assert(is_Unifiable ltt = false) )
+  | _ -> assert(is_Unifiable ltt = false)
 
 assume val existence_unifier : ltt: list (term*term) -> Lemma
   (requires true)
